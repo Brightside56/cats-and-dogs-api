@@ -45,7 +45,7 @@ def auth_login(auth: schemas.Auth, Authorize: AuthJWT = Depends(), db: Session =
     else:
         access_token = Authorize.create_access_token(subject=user_id)
         refresh_token = Authorize.create_refresh_token(subject=user_id)
-    return {"access_token": access_token, "refresh_token": refresh_token}
+    return {"access": access_token, "refresh": refresh_token}
 
 @app.post('/user/add', response_model=schemas.User)
 def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -63,9 +63,9 @@ def refresh(Authorize: AuthJWT = Depends()):
 
     current_user = Authorize.get_jwt_subject()
     new_access_token = Authorize.create_access_token(subject=current_user)
-    return {"access_token": new_access_token}
+    return {"access": new_access_token}
 
-@app.post('/user/me', response_model=schemas.User)
+@app.get('/user/me', response_model=schemas.User)
 def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
 
