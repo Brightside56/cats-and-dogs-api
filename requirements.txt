@@ -1,0 +1,6 @@
+fastapi-jwt-auth
+fastapi
+hypercorn
+sqlalchemy
+alembic
+psycopg2
