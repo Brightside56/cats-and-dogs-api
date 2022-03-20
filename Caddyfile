@@ -1,7 +1,8 @@
-{
-  local_certs
-}
+#{
+#  local_certs
+#}
 
-api.adoptpets.click {  
+api.adoptpets.click {
+  tls o.gumbar56@gmail.com   
   reverse_proxy api:8080
 }
