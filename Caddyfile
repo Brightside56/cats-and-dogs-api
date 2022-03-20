@@ -2,6 +2,6 @@
   local_certs
 }
 
-adoptpets.click {  
+api.adoptpets.click {  
   reverse_proxy api:8080
 }
