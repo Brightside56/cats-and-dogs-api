@@ -3,18 +3,18 @@ version: '3.8'
 services:
 
   db:
-    image: postgres
+    image: postgres:14
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/pgdata
   # api:
   #   build:
   #     context: .
-  #   ports:
-  #     - 8080:8080
   #   restart: always
+  #   environment:
+  #     POSTGRES_DATABASE_URL: "postgresql://postgres:password@db:5432/postgres"
   # caddy:
   #   image: caddy:2.4.6
   #   ports:
@@ -23,3 +23,8 @@ services:
   #   restart: always
   #   volumes:
   #     - ./Caddyfile:/etc/caddy/Caddyfile
+  #     - caddy_data:/data
+
+volumes:
+  # caddy_data:
+  postgres_data:
