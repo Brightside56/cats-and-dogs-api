@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: password
+  # api:
+  #   build:
+  #     context: .
+  #   ports:
+  #     - 8080:8080
+  #   restart: always
+  # caddy:
+  #   image: caddy:2.4.6
+  #   ports:
+  #     - 80:80
+  #     - 443:443
+  #   restart: always
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile
