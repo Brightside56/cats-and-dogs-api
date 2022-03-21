@@ -82,8 +82,9 @@ def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     return user
 
 @app.post('/pets', response_model=schemas.Pet)
-async def pets_add(name: str = Form(...), description: str = Form(...), sex: str = Form(...), species: str = Form(...), birth_date: date = Form(...), has_home: bool = Form(...), file: UploadFile | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+async def pets_add(name: str = Form(...), description: str = Form(...), sex: str = Form(...), species: str = Form(...), birth_date: date = Form(...), has_home: bool = Form(...), image: UploadFile | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
+    file = image
     if not file:
         avatar = None
         pass
