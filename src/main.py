@@ -99,7 +99,7 @@ async def pets_add(name: str = Form(...), description: str = Form(...), sex: str
         
         avatar = '/' + IMAGES_PET_AVATARS + file_name
     
-    pet = schemas.PetCreate(name=name, description=description, sex=sex, species=species, birth_date=birth_date, image=avatar)
+    pet = schemas.PetCreate(name=name, description=description, sex=sex, species=species, birth_date=birth_date, has_home=has_home, image=avatar)
     print(pet)
     return crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
 
