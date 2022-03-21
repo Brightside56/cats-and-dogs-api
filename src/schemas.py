@@ -29,7 +29,7 @@ class PetBase(BaseModel):
     species: str
     birth_date: date
     image: str | None = None
-    has_home: bool = True
+    has_home: bool
 
 class PetCreate(PetBase):
     pass
