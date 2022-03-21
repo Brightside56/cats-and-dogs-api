@@ -1,6 +1,7 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String
+from sqlalchemy.types import Date
 from sqlalchemy.orm import relationship
-
+# from datetime import date
 from database import Base
 
 
@@ -14,17 +15,23 @@ class User(Base):
     phone = Column(String)
     country = Column(String)
     city = Column(String)
-    # items = relationship("Item", back_populates="owner")
+
+    pets = relationship("Pet", back_populates="owner")
 
 class Pet(Base):
     __tablename__ = "pets"
 
     id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String, index=True)
-    # owner_id = Column(Integer, ForeignKey("users.id"))
+    name = Column(String, index=True)
+    description = Column(String)
+    sex = Column(String, index=True)
+    species = Column(String, index=True)
+    birth_date = Column(Date, index=True) 
+    image = Column(String)
+    has_home = Column(Boolean, server_default='t', default=True)
+    owner_id = Column(Integer, ForeignKey("users.id"))
 
-    # owner = relationship("User", back_populates="items")
+    owner = relationship("User", back_populates="pets")
 
 class Post(Base):
     __tablename__ = "posts"

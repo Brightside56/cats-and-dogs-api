@@ -1,6 +1,11 @@
 import re
 import inspect
-from fastapi import FastAPI, HTTPException, Depends, Request
+import uuid
+import os
+import aiofiles
+from datetime import date
+from fastapi import FastAPI, HTTPException, Depends, Request, File, UploadFile, Form
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastapi_jwt_auth import AuthJWT
 from fastapi.openapi.utils import get_openapi
@@ -11,9 +16,14 @@ from sqlalchemy.orm import Session
 import crud, models, schemas, helpers
 from database import SessionLocal, engine
 
+
+IMAGES_PET_AVATARS = 'static/pet_avatars/'
+
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Dependency
 def get_db():
@@ -47,10 +57,6 @@ def auth_login(auth: schemas.Auth, Authorize: AuthJWT = Depends(), db: Session =
         refresh_token = Authorize.create_refresh_token(subject=user_id)
     return {"access": access_token, "refresh": refresh_token}
 
-@app.post('/user/add', response_model=schemas.User)
-def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    return crud.create_user(db=db, user=user)
-
 @app.post('/auth/refresh')
 def refresh(Authorize: AuthJWT = Depends()):
     """
@@ -65,13 +71,44 @@ def refresh(Authorize: AuthJWT = Depends()):
     new_access_token = Authorize.create_access_token(subject=current_user)
     return {"access": new_access_token}
 
-@app.get('/user/me', response_model=schemas.User)
+@app.post('/users', response_model=schemas.User)
+def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    return crud.create_user(db=db, user=user)
+
+@app.get('/users/me', response_model=schemas.User)
 def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
-
     user = helpers.get_user_by_id(db, Authorize.get_jwt_subject())
     return user
 
+@app.post('/pets', response_model=schemas.Pet)
+async def pets_add(name: str = Form(...), description: str = Form(...), sex: str = Form(...), species: str = Form(...), birth_date: date = Form(...), has_home: bool = Form(...), file: UploadFile | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    if not file:
+        avatar = None
+        pass
+    else:
+        if file.content_type not in ['image/jpeg', 'image/png']:
+            raise HTTPException(status_code=406, detail="Only .jpeg or .png  files allowed")
+        _, ext = os.path.splitext(file.filename)
+        file_name = f'{uuid.uuid4().hex}{ext}'
+        async with aiofiles.open(IMAGES_PET_AVATARS + file_name, 'wb') as f:
+            while content := await file.read(1024):  # async read chunk
+                await f.write(content)  # async write chunk        
+        
+        avatar = '/' + IMAGES_PET_AVATARS + file_name
+    
+    pet = schemas.PetCreate(name=name, description=description, sex=sex, species=species, birth_date=birth_date, image=avatar)
+    print(pet)
+    return crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
+
+@app.get('/pets', response_model=list[schemas.Pet])
+def pets_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_pets(db=db, offset=offset, limit=limit)
+
+@app.get('/pets/{pet_id}', response_model=schemas.Pet)
+def pet_get(pet_id: int, db: Session = Depends(get_db)):
+    return crud.get_pet(db=db, pet_id=pet_id)
 
 def custom_openapi():
     if app.openapi_schema:
