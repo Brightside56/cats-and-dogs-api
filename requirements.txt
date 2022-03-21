@@ -6,3 +6,4 @@ alembic
 # psycopg2
 psycopg2-binary
 aiofiles
+python-multipart
