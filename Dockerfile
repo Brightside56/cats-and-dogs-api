@@ -6,8 +6,6 @@ RUN apk add --no-cache --virtual .build-deps build-base postgresql-libs libpq li
     pip --no-cache-dir install -r /app/requirements.txt && \
     apk del .build-deps && rm -rf /var/cache/apk/*
 
-USER nobody:nogroup
-
 WORKDIR /app
 
 EXPOSE 9999
