@@ -80,6 +80,10 @@ def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     user = helpers.get_user_by_id(db, Authorize.get_jwt_subject())
+    if user.pets:
+        for i in range(len(user.pets)):
+            if user.pets[i].image is not None:
+                user.pets[i].image = IMAGES_PUBLIC_URL + user.pets[i].image
     return user
 
 @app.post('/pets', response_model=schemas.Pet)
