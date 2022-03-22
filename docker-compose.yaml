@@ -15,6 +15,8 @@ services:
     restart: always
     environment:
       POSTGRES_DATABASE_URL: "postgresql://postgres:password@db:5432/postgres"
+    volumes:
+      - static:/app/static
   caddy:
     image: caddy:2.4.6
     ports:
@@ -28,3 +30,4 @@ services:
 volumes:
   caddy_data:
   postgres_data:
+  static:

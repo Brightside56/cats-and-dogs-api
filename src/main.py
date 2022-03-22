@@ -18,6 +18,7 @@ from database import SessionLocal, engine
 
 
 IMAGES_PET_AVATARS = 'static/pet_avatars/'
+IMAGES_PUBLIC_URL = 'https://api.adoptpets.click'
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -100,16 +101,30 @@ async def pets_add(name: str = Form(...), description: str = Form(...), sex: str
         avatar = '/' + IMAGES_PET_AVATARS + file_name
     
     pet = schemas.PetCreate(name=name, description=description, sex=sex, species=species, birth_date=birth_date, has_home=has_home, image=avatar)
-    print(pet)
-    return crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
+    created_pet = crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
+    if created_pet.image is not None:
+        created_pet.image = IMAGES_PUBLIC_URL + created_pet.image
+
+    return created_pet
 
 @app.get('/pets', response_model=list[schemas.Pet])
 def pets_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    return crud.get_pets(db=db, offset=offset, limit=limit)
+    pets = crud.get_pets(db=db, offset=offset, limit=limit)
+
+    for i in range(len(pets)):
+        if pets[i].image is not None:
+            pets[i].image = IMAGES_PUBLIC_URL + pets[i].image
+    return pets
 
 @app.get('/pets/{pet_id}', response_model=schemas.Pet)
 def pet_get(pet_id: int, db: Session = Depends(get_db)):
-    return crud.get_pet(db=db, pet_id=pet_id)
+    pet = crud.get_pet(db=db, pet_id=pet_id)
+    if pet is not None:
+        if pet.image is not None:
+            pet.image = IMAGES_PUBLIC_URL + pet.image
+        return pet
+    else:
+        raise HTTPException(status_code=404, detail="Pet with such id not found")
 
 def custom_openapi():
     if app.openapi_schema:
