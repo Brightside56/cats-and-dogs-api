@@ -15,9 +15,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import crud, models, schemas, helpers
 from database import SessionLocal, engine
+from typing import List, Optional
 
 
 IMAGES_PET_AVATARS = 'static/pet_avatars/'
+IMAGES_POST_IMAGES = 'static/post_images/'
 IMAGES_PUBLIC_URL = 'https://api.adoptpets.click'
 
 models.Base.metadata.create_all(bind=engine)
@@ -86,6 +88,12 @@ def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
                 user.pets[i].image = IMAGES_PUBLIC_URL + user.pets[i].image
     return user
 
+@app.put("/users/me", response_model=schemas.UserUpdate)
+def user_me_update(user: schemas.UserUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    updated_user = crud.update_user(db=db, user=user, user_id=Authorize.get_jwt_subject())
+    return updated_user
+
 @app.post('/pets', response_model=schemas.Pet)
 async def pets_add(name: str = Form(...), description: str = Form(...), sex: str = Form(...), species: str = Form(...), birth_date: date = Form(...), has_home: bool = Form(...), image: UploadFile | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
@@ -108,13 +116,11 @@ async def pets_add(name: str = Form(...), description: str = Form(...), sex: str
     created_pet = crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
     if created_pet.image is not None:
         created_pet.image = IMAGES_PUBLIC_URL + created_pet.image
-
     return created_pet
 
 @app.get('/pets', response_model=list[schemas.Pet])
 def pets_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     pets = crud.get_pets(db=db, offset=offset, limit=limit)
-
     for i in range(len(pets)):
         if pets[i].image is not None:
             pets[i].image = IMAGES_PUBLIC_URL + pets[i].image
@@ -129,6 +135,71 @@ def pet_get(pet_id: int, db: Session = Depends(get_db)):
         return pet
     else:
         raise HTTPException(status_code=404, detail="Pet with such id not found")
+
+
+@app.post('/pets/{pet_id}/posts', response_model=schemas.Post)
+async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_files: List[UploadFile] = File(...), Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    images = []
+    if image_files is None:
+        raise HTTPException(status_code=422, detail="You cannot create post without images")
+    else:
+        for image_file in image_files:
+            if image_file.content_type not in ['image/jpeg', 'image/png']:
+                pass
+            else:
+                _, ext = os.path.splitext(image_file.filename)
+                file_name = f'{uuid.uuid4().hex}{ext}'
+                async with aiofiles.open(IMAGES_POST_IMAGES + file_name, 'wb') as f:
+                    while content := await image_file.read(1024):  # async read chunk
+                        await f.write(content)  # async write chunk        
+                
+                images.append('/' + IMAGES_POST_IMAGES + file_name)
+    
+    # check if pet is owned by user
+    pet_owner = pet_get(pet_id, db)
+    if pet_owner.owner_id == Authorize.get_jwt_subject():
+        post = schemas.PostCreate(text=text, images=images, owner_id=pet_id)
+        created_post = crud.create_post(db=db, post=post)
+        if created_post.images:
+            for i in range(len(created_post.images)):
+                created_post.images[i] = IMAGES_PUBLIC_URL + created_post.images[i]
+        return created_post
+    else:
+        raise HTTPException(status_code=422, detail="Wrong owner of pet")
+
+@app.get('/pets/{pet_id}/posts', response_model=List[schemas.Post])
+def pet_posts_get(pet_id: int, db: Session = Depends(get_db)):
+    posts = crud.get_posts(db=db, pet_id=pet_id)
+    if posts:
+        for p in range(len(posts)):
+            for i in range(len(posts[p].images)):
+                posts[p].images[i] = IMAGES_PUBLIC_URL + posts[p].images[i]
+        return posts
+    else:
+        raise HTTPException(status_code=404, detail="Posts with such parameters not found")
+
+@app.get('/posts', response_model=List[schemas.Post])
+def posts_get(db: Session = Depends(get_db)):
+    posts = crud.get_posts(db=db)
+    if posts:
+        for p in range(len(posts)):
+            for i in range(len(posts[p].images)):
+                posts[p].images[i] = IMAGES_PUBLIC_URL + posts[p].images[i]
+        return posts
+    else:
+        raise HTTPException(status_code=404, detail="Posts not found. Create some posts")
+
+@app.get('/posts/{post_id}', response_model=schemas.Post)
+def posts_get(post_id: int, db: Session = Depends(get_db)):
+    post = crud.get_post(db=db, post_id=post_id)
+    if post:
+        for i in range(len(post.images)):
+            post.images[i] = IMAGES_PUBLIC_URL + post.images[i]
+        return post
+    else:
+        raise HTTPException(status_code=404, detail="Post not found")
+
 
 def custom_openapi():
     if app.openapi_schema:
