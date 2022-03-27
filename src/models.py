@@ -1,8 +1,26 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, ARRAY, Date, DateTime
 # from sqlalchemy.types import Date
 from sqlalchemy.orm import relationship
-from database import Base
 from datetime import datetime
+from sqlalchemy.ext.declarative import declared_attr, declarative_base
+from sqlalchemy import Table
+from typing import Dict, Any
+
+
+class Custom:
+    """Some custom logic here!"""
+
+    __table__: Table  # def for mypy
+
+    @declared_attr
+    def __tablename__(cls):  # pylint: disable=no-self-argument
+        return cls.__name__  # pylint: disable= no-member
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serializes only column data."""
+        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
+
+Base = declarative_base(cls=Custom)
 
 
 class User(Base):
@@ -52,7 +70,10 @@ class Comment(Base):
 
 class Like(Base):
     __tablename__ = "likes"
-
+    __table_args__ = (
+        db.UniqueConstraint('post_id', 'owner_id'),
+    )
+    
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("posts.id"))
     owner_id = Column(Integer, ForeignKey("users.id"))

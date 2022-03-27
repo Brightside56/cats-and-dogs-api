@@ -20,7 +20,7 @@ from typing import List, Optional
 
 IMAGES_PET_AVATARS = 'static/pet_avatars/'
 IMAGES_POST_IMAGES = 'static/post_images/'
-IMAGES_PUBLIC_URL = 'https://api.adoptpets.click'
+IMAGES_PUBLIC_URL = 'https://api2.adoptpets.click'
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -114,27 +114,44 @@ async def pets_add(name: str = Form(...), description: str = Form(...), sex: str
     
     pet = schemas.PetCreate(name=name, description=description, sex=sex, species=species, birth_date=birth_date, has_home=has_home, image=avatar)
     created_pet = crud.create_pet(db=db, pet=pet, user_id=Authorize.get_jwt_subject())
-    if created_pet.image is not None:
-        created_pet.image = IMAGES_PUBLIC_URL + created_pet.image
+    if created_pet['image'] is not None:
+        created_pet['image'] = IMAGES_PUBLIC_URL + created_pet['image']
     return created_pet
 
 @app.get('/pets', response_model=list[schemas.Pet])
 def pets_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     pets = crud.get_pets(db=db, offset=offset, limit=limit)
     for i in range(len(pets)):
-        if pets[i].image is not None:
-            pets[i].image = IMAGES_PUBLIC_URL + pets[i].image
+        if pets[i]['image'] is not None:
+            pets[i]['image'] = IMAGES_PUBLIC_URL + pets[i]['image']
     return pets
 
 @app.get('/pets/{pet_id}', response_model=schemas.Pet)
 def pet_get(pet_id: int, db: Session = Depends(get_db)):
     pet = crud.get_pet(db=db, pet_id=pet_id)
     if pet is not None:
-        if pet.image is not None:
-            pet.image = IMAGES_PUBLIC_URL + pet.image
+        if pet['image'] is not None:
+            pet['image'] = IMAGES_PUBLIC_URL + pet['image']
         return pet
     else:
         raise HTTPException(status_code=404, detail="Pet with such id not found")
+
+
+@app.put("/pet/{pet_id}", response_model=schemas.PetCreate)
+def pet_update(pet: schemas.PetCreate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    updated_pet = crud.update_pet(db=db, pet=pet, pet_id=Authorize.get_jwt_subject())
+
+    if updated_pet['owner_id'] == Authorize.get_jwt_subject():
+        if updated_pet is not None:
+            if updated_pet['image'] is not None:
+                updated_pet['image'] = IMAGES_PUBLIC_URL + updated_pet['image']
+            return updated_pet
+        else:
+            raise HTTPException(status_code=404, detail="Pet with such id not found")
+    else:
+        raise HTTPException(status_code=422, detail="Wrong owner of pet")        
+
 
 
 @app.post('/pets/{pet_id}/posts', response_model=schemas.Post)
@@ -158,12 +175,12 @@ async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_fil
     
     # check if pet is owned by user
     pet_owner = pet_get(pet_id, db)
-    if pet_owner.owner_id == Authorize.get_jwt_subject():
+    if pet_owner['owner_id'] == Authorize.get_jwt_subject():
         post = schemas.PostCreate(text=text, images=images, owner_id=pet_id)
         created_post = crud.create_post(db=db, post=post)
-        if created_post.images:
-            for i in range(len(created_post.images)):
-                created_post.images[i] = IMAGES_PUBLIC_URL + created_post.images[i]
+        if created_post['images']:
+            for i in range(len(created_post['images'])):
+                created_post['images'][i] = IMAGES_PUBLIC_URL + created_post['images'][i]
         return created_post
     else:
         raise HTTPException(status_code=422, detail="Wrong owner of pet")
@@ -173,32 +190,62 @@ def pet_posts_get(pet_id: int, db: Session = Depends(get_db)):
     posts = crud.get_posts(db=db, pet_id=pet_id)
     if posts:
         for p in range(len(posts)):
-            for i in range(len(posts[p].images)):
-                posts[p].images[i] = IMAGES_PUBLIC_URL + posts[p].images[i]
-        return posts
-    else:
-        raise HTTPException(status_code=404, detail="Posts with such parameters not found")
+            for i in range(len(posts[p]['images'])):
+                posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+    return posts
 
 @app.get('/posts', response_model=List[schemas.Post])
 def posts_get(db: Session = Depends(get_db)):
     posts = crud.get_posts(db=db)
     if posts:
         for p in range(len(posts)):
-            for i in range(len(posts[p].images)):
-                posts[p].images[i] = IMAGES_PUBLIC_URL + posts[p].images[i]
-        return posts
-    else:
-        raise HTTPException(status_code=404, detail="Posts not found. Create some posts")
+            for i in range(len(posts[p]['images'])):
+                posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+    return posts
 
 @app.get('/posts/{post_id}', response_model=schemas.Post)
 def posts_get(post_id: int, db: Session = Depends(get_db)):
     post = crud.get_post(db=db, post_id=post_id)
     if post:
-        for i in range(len(post.images)):
-            post.images[i] = IMAGES_PUBLIC_URL + post.images[i]
+        for i in range(len(post['images'])):
+            post['images'][i] = IMAGES_PUBLIC_URL + post['images'][i]
         return post
     else:
         raise HTTPException(status_code=404, detail="Post not found")
+
+@app.get('/posts/{post_id}/likes', response_model=int)
+def posts_get(post_id: int, db: Session = Depends(get_db)):
+    return crud.get_likes(db=db, post_id=post_id)
+
+@app.post('/posts/{post_id}/like', response_model=int)
+def posts_get(post_id: int, db: Session = Depends(get_db)):
+    return crud.get_likes(db=db, post_id=post_id)
+
+@app.delete('/posts/{post_id}/like', response_model=int)
+def posts_get(post_id: int, db: Session = Depends(get_db)):
+    return crud.get_likes(db=db, post_id=post_id)
+
+@app.get('/comments', response_model=List[schemas.Comment])
+def comments_get(db: Session = Depends(get_db)):
+    return crud.get_comments(db=db)
+
+@app.post('/comments', response_model=schemas.Comment)
+async def comments_add(post_id: int, comment: schemas.CommentCreate, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    comment.owner_id = Authorize.get_jwt_subject()
+    comment.post_id = post_id
+    return crud.create_comment(db=db, comment=comment)
+
+@app.get('/comments/{comment_id}', response_model=schemas.Comment)
+def comment_get(comment_id: int, db: Session = Depends(get_db)):
+    return crud.get_comment(db=db, comment_id=comment_id)
+
+@app.put('/comments/{comment_id}', response_model=schemas.Comment)
+async def comments_update(comment_id: int, comment: schemas.CommentBase, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    comment_source = comments_get(commend_id=comment_id, db=db)
+    if comment_source['owner_id'] = Authorize.get_jwt_subject():
+        return crud.update_comment(db=db, comment=comment)
 
 
 def custom_openapi():

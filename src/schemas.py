@@ -66,7 +66,6 @@ class User(UserBase):
 class PostBase(BaseModel):
     text: Optional[str]
     images: List[str] | None = None
-    owner_id: int
 
 class PostCreate(PostBase):
     pass
@@ -81,36 +80,36 @@ class Post(PostBase):
     class Config:
         orm_mode = True
 
+
 class CommentBase(BaseModel):
-    text: Optional[str]
-    post_id: int
-    owner_id: int
+    text: str
 
 class CommentCreate(CommentBase):
-    pass
+    owner_id: int
+    post_id: int
 
 class Comment(CommentBase):
     id: int
-    text: Optional[str]
-    post_id: int
-    owner_id: int
+    text: str
     time: datetime
+    owner_id: int
+    post_id: int
 
     class Config:
         orm_mode = True
 
+
 class LikeBase(BaseModel):
-    text: Optional[str]
-    post_id: int
     owner_id: int
+    post_id: int
 
 class LikeCreate(LikeBase):
     pass
 
 class Like(LikeBase):
     id: int
-    post_id: int
     owner_id: int
+    post_id: int
 
     class Config:
         orm_mode = True
