@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, ARRAY, Date, DateTime
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, ARRAY, Date, DateTime, Index
 # from sqlalchemy.types import Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -57,7 +57,7 @@ class Post(Base):
     owner_id = Column(Integer, ForeignKey("pets.id"))
     images = Column(ARRAY(String()))
     time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    comments = relationship("Comment", back_populates="post")
 
 class Comment(Base):
     __tablename__ = "comments"
@@ -67,13 +67,18 @@ class Comment(Base):
     post_id = Column(Integer, ForeignKey("posts.id"))
     owner_id = Column(Integer, ForeignKey("users.id"))
     time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    post = relationship("Post", back_populates="comments")
 
 class Like(Base):
     __tablename__ = "likes"
     __table_args__ = (
-        db.UniqueConstraint('post_id', 'owner_id'),
+        Index(
+            'post_id',
+            'owner_id',
+            unique=True,
+        ),
     )
-    
+
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("posts.id"))
     owner_id = Column(Integer, ForeignKey("users.id"))

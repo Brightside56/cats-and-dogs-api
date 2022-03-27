@@ -82,10 +82,10 @@ def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     user = helpers.get_user_by_id(db, Authorize.get_jwt_subject())
-    if user.pets:
-        for i in range(len(user.pets)):
-            if user.pets[i].image is not None:
-                user.pets[i].image = IMAGES_PUBLIC_URL + user.pets[i].image
+    if 'pets' in user:
+        for i in range(len(user['pets'])):
+            if user['pets'][i]['image'] is not None:
+                user['pets'][i]['image'] = IMAGES_PUBLIC_URL + user['pets'][i]['image']
     return user
 
 @app.put("/users/me", response_model=schemas.UserUpdate)
@@ -130,27 +130,29 @@ def pets_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 def pet_get(pet_id: int, db: Session = Depends(get_db)):
     pet = crud.get_pet(db=db, pet_id=pet_id)
     if pet is not None:
-        if pet['image'] is not None:
+        if 'image' in pet:
             pet['image'] = IMAGES_PUBLIC_URL + pet['image']
         return pet
     else:
         raise HTTPException(status_code=404, detail="Pet with such id not found")
 
 
-@app.put("/pet/{pet_id}", response_model=schemas.PetCreate)
-def pet_update(pet: schemas.PetCreate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+@app.put("/pet/{pet_id}", response_model=schemas.Pet)
+def pet_update(pet_id: int, pet: schemas.PetUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
-    updated_pet = crud.update_pet(db=db, pet=pet, pet_id=Authorize.get_jwt_subject())
-
-    if updated_pet['owner_id'] == Authorize.get_jwt_subject():
-        if updated_pet is not None:
-            if updated_pet['image'] is not None:
-                updated_pet['image'] = IMAGES_PUBLIC_URL + updated_pet['image']
-            return updated_pet
-        else:
-            raise HTTPException(status_code=404, detail="Pet with such id not found")
+    pet_by_id = crud.get_pet(db=db, pet_id=pet_id)
+    if pet_by_id['owner_id'] == Authorize.get_jwt_subject():
+        updated_pet = crud.update_pet(db=db, pet=pet, pet_id=pet_id)
     else:
-        raise HTTPException(status_code=422, detail="Wrong owner of pet")        
+        raise HTTPException(status_code=422, detail="Wrong owner of pet")   
+
+    if updated_pet is not None:
+        if updated_pet['image'] is not None:
+            updated_pet['image'] = IMAGES_PUBLIC_URL + updated_pet['image']
+        return updated_pet
+    else:
+        raise HTTPException(status_code=404, detail="Pet with such id not found")
+     
 
 
 
@@ -174,13 +176,16 @@ async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_fil
                 images.append('/' + IMAGES_POST_IMAGES + file_name)
     
     # check if pet is owned by user
-    pet_owner = pet_get(pet_id, db)
-    if pet_owner['owner_id'] == Authorize.get_jwt_subject():
-        post = schemas.PostCreate(text=text, images=images, owner_id=pet_id)
-        created_post = crud.create_post(db=db, post=post)
-        if created_post['images']:
+    pet_by_id = pet_get(pet_id, db)
+
+    if 'owner_id' in pet_by_id and pet_by_id['owner_id'] == Authorize.get_jwt_subject():
+        post = schemas.PostCreate(text=text, images=images)
+        created_post = crud.create_post(db=db, post=post, owner_id=Authorize.get_jwt_subject())
+        if 'images' in created_post:
             for i in range(len(created_post['images'])):
                 created_post['images'][i] = IMAGES_PUBLIC_URL + created_post['images'][i]
+        if 'avatar' in created_post:
+            created_post['avatar'] = IMAGES_PUBLIC_URL + created_post['avatar']
         return created_post
     else:
         raise HTTPException(status_code=422, detail="Wrong owner of pet")
@@ -192,6 +197,8 @@ def pet_posts_get(pet_id: int, db: Session = Depends(get_db)):
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
                 posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+            if 'avatar' in posts[p]:
+                posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
     return posts
 
 @app.get('/posts', response_model=List[schemas.Post])
@@ -201,6 +208,8 @@ def posts_get(db: Session = Depends(get_db)):
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
                 posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+            if 'avatar' in posts[p]:
+                posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
     return posts
 
 @app.get('/posts/{post_id}', response_model=schemas.Post)
@@ -209,6 +218,8 @@ def posts_get(post_id: int, db: Session = Depends(get_db)):
     if post:
         for i in range(len(post['images'])):
             post['images'][i] = IMAGES_PUBLIC_URL + post['images'][i]
+        if 'avatar' in post:
+            post['avatar'] = IMAGES_PUBLIC_URL + post['avatar']
         return post
     else:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -219,7 +230,7 @@ def posts_get(post_id: int, db: Session = Depends(get_db)):
 
 @app.post('/posts/{post_id}/like', response_model=int)
 def posts_get(post_id: int, db: Session = Depends(get_db)):
-    return crud.get_likes(db=db, post_id=post_id)
+    return crud.create_like(db=db, post_id=post_id)
 
 @app.delete('/posts/{post_id}/like', response_model=int)
 def posts_get(post_id: int, db: Session = Depends(get_db)):
@@ -230,10 +241,9 @@ def comments_get(db: Session = Depends(get_db)):
     return crud.get_comments(db=db)
 
 @app.post('/comments', response_model=schemas.Comment)
-async def comments_add(post_id: int, comment: schemas.CommentCreate, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+async def comments_add(comment: schemas.CommentCreate, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     comment.owner_id = Authorize.get_jwt_subject()
-    comment.post_id = post_id
     return crud.create_comment(db=db, comment=comment)
 
 @app.get('/comments/{comment_id}', response_model=schemas.Comment)
@@ -243,9 +253,16 @@ def comment_get(comment_id: int, db: Session = Depends(get_db)):
 @app.put('/comments/{comment_id}', response_model=schemas.Comment)
 async def comments_update(comment_id: int, comment: schemas.CommentBase, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
-    comment_source = comments_get(commend_id=comment_id, db=db)
-    if comment_source['owner_id'] = Authorize.get_jwt_subject():
-        return crud.update_comment(db=db, comment=comment)
+    comment_source = crud.get_comment(comment_id=comment_id, db=db)
+    if comment_source['owner_id'] == Authorize.get_jwt_subject():
+        return crud.update_comment(db=db, comment=comment, comment_id=comment_id)
+
+@app.delete('/comments/{comment_id}', response_model=int)
+async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    comment_source = crud.get_comment(comment_id=comment_id, db=db)
+    if comment_source['owner_id'] == Authorize.get_jwt_subject():
+        return crud.delete_comment(db=db, comment_id=comment_id)
 
 
 def custom_openapi():
