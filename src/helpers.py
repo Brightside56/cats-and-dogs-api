@@ -10,5 +10,8 @@ def check_auth(db: Session, auth: schemas.Auth):
 
 def get_user_by_id(db: Session, user_id: int):
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    return user.to_dict()
+    if user:
+        return user.to_dict()
+    else:
+        return user
     
