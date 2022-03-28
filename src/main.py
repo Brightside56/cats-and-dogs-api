@@ -183,7 +183,7 @@ async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_fil
 
     if 'owner_id' in pet_by_id and pet_by_id['owner_id'] == Authorize.get_jwt_subject():
         post = schemas.PostCreate(text=text, images=images)
-        created_post = crud.create_post(db=db, post=post, owner_id=Authorize.get_jwt_subject())
+        created_post = crud.create_post(db=db, post=post, owner_id=pet_id)
         if 'images' in created_post:
             for i in range(len(created_post['images'])):
                 created_post['images'][i] = IMAGES_PUBLIC_URL + created_post['images'][i]
@@ -194,8 +194,8 @@ async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_fil
         raise HTTPException(status_code=422, detail="Wrong owner of pet")
 
 @app.get('/pets/{pet_id}/posts', response_model=List[schemas.Post])
-def pet_posts_get(pet_id: int, db: Session = Depends(get_db)):
-    posts = crud.get_posts(db=db, pet_id=pet_id)
+def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    posts = crud.get_posts(db=db, pet_id=pet_id, offset=offset, limit=limit)
     if posts:
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
@@ -205,8 +205,8 @@ def pet_posts_get(pet_id: int, db: Session = Depends(get_db)):
     return posts
 
 @app.get('/posts', response_model=List[schemas.Post])
-def posts_get(db: Session = Depends(get_db)):
-    posts = crud.get_posts(db=db)
+def posts_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    posts = crud.get_posts(db=db, offset=offset, limit=limit)
     if posts:
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
@@ -231,17 +231,29 @@ def posts_get(post_id: int, db: Session = Depends(get_db)):
 def posts_get(post_id: int, db: Session = Depends(get_db)):
     return crud.get_likes(db=db, post_id=post_id)
 
-@app.post('/posts/{post_id}/like', response_model=int)
-def posts_get(post_id: int, db: Session = Depends(get_db)):
-    return crud.create_like(db=db, post_id=post_id)
+@app.post('/posts/{post_id}/like', response_model=dict)
+def posts_like(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    like = schemas.LikeCreate(owner_id=Authorize.get_jwt_subject(), post_id=post_id)
+    result = crud.create_like(db=db, like=like)
+    if result == "ok":
+        return {"like": "ok"}
+    else:
+        raise HTTPException(status_code=403, detail=result)
 
-@app.delete('/posts/{post_id}/like', response_model=int)
-def posts_get(post_id: int, db: Session = Depends(get_db)):
-    return crud.get_likes(db=db, post_id=post_id)
+@app.delete('/posts/{post_id}/like', response_model=dict)
+def posts_get(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    like = schemas.LikeCreate(owner_id=Authorize.get_jwt_subject(), post_id=post_id)
+    result = crud.delete_like(db=db, like=like)
+    if result == "ok":
+        return {"delete": "ok"}
+    else:
+        raise HTTPException(status_code=404, detail=result)
 
 @app.get('/comments', response_model=List[schemas.Comment])
-def comments_get(db: Session = Depends(get_db)):
-    return crud.get_comments(db=db)
+def comments_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    return crud.get_comments(db=db, offset=offset, limit=limit)
 
 @app.post('/comments', response_model=schemas.Comment)
 async def comments_add(comment: schemas.CommentCreate, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
@@ -260,12 +272,16 @@ async def comments_update(comment_id: int, comment: schemas.CommentBase, Authori
     if comment_source['owner_id'] == Authorize.get_jwt_subject():
         return crud.update_comment(db=db, comment=comment, comment_id=comment_id)
 
-@app.delete('/comments/{comment_id}', response_model=int)
+@app.delete('/comments/{comment_id}', response_model=dict)
 async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     comment_source = crud.get_comment(comment_id=comment_id, db=db)
+    if comment_source is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
     if comment_source['owner_id'] == Authorize.get_jwt_subject():
         return crud.delete_comment(db=db, comment_id=comment_id)
+    else:
+        raise HTTPException(status_code=401, detail="You're not owner of comment to remove")
 
 
 def custom_openapi():

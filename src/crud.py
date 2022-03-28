@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from sqlalchemy.inspection import inspect
-
+from sqlalchemy import exc
 import models, schemas
 
 from sqlalchemy.inspection import inspect
@@ -52,7 +52,7 @@ def update_user(db: Session, user: schemas.UserUpdate, user_id: int):
 
 
 def get_pet(db: Session, pet_id: int):
-    pet = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.Pet.owner_id == models.User.id, models.Pet.id == pet_id).first()
+    pet = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.Pet.id == pet_id, models.User.id == models.Pet.owner_id).first()
     if pet:
         pet_dict = pet[0].to_dict()
         pet_dict['country'] = pet[1]
@@ -62,7 +62,7 @@ def get_pet(db: Session, pet_id: int):
         return []
 
 def get_pets(db: Session, offset: int = 0, limit: int = 100):
-    pets = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.Pet.owner_id == models.User.id).offset(offset).limit(limit).all()
+    pets = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.User.id == models.Pet.owner_id).offset(offset).limit(limit).all()
     pets_filtered = []
     for pet in pets:
         pet_dict = pet[0].to_dict()
@@ -104,9 +104,9 @@ def get_post(db: Session, post_id: int):
 
 def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None):
     if pet_id is not None:
-        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Post.owner_id==pet_id, models.Post.owner_id == models.Pet.id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
+        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Post.owner_id==pet_id, models.Pet.id == models.Post.owner_id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
     else:
-        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Post.owner_id == models.Pet.id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
+        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Pet.id == models.Post.owner_id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
     
     filtered_posts = []
     for post in posts:
@@ -144,7 +144,10 @@ def update_post(db: Session, post: schemas.PostCreate, post_id: int):
 
 def get_comment(db: Session, comment_id: int):
     comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
-    return comment.to_dict()
+    if comment is not None:
+        return comment.to_dict()
+    else:
+        return None
 
 def get_comments(db: Session, offset: int = 0, limit: int = 100, post_id: int = None):
     if post_id is not None:
@@ -173,22 +176,30 @@ def update_comment(db: Session, comment: schemas.CommentBase, comment_id: int):
     return db_comment.to_dict()
 
 def delete_comment(db: Session, comment_id: int):
-    db.execute(models.Comment.delete().where(models.Comment.id == comment_id))
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).one()
+    db.delete(comment)
     db.commit()
-    return comment_id
+    return {"delete": "ok"}
 
 def get_likes(db: Session, post_id: int):
-    likes = db.query(models.Like).filter(models.Comment.post_id==post_id).order_by(desc(models.Comment.time)).offset(offset).limit(limit).all()
+    likes = db.query(models.Like).filter(models.Comment.post_id==post_id).order_by(desc(models.Comment.time)).all()
     return len(likes)
 
-def create_like(db: Session, comment: schemas.LikeCreate):
+def create_like(db: Session, like: schemas.LikeCreate):
     db_like = models.Like(**like.dict())
-    db.add(db_like)
-    db.commit()
-    db.refresh(db_like)
-    return db_like.to_dict()
+    try:
+        db.add(db_like)
+        db.commit()
+        db.refresh(db_like)
+    except exc.IntegrityError as err:
+        return {"like": "exists"}
+    return "ok"
 
-def delete_like(db: Session, comment: schemas.LikeCreate, like_id: int):
-    db.execute(models.Like.delete().where(models.Like.id == like_id))
-    db.commit()
-    return like_id
+def delete_like(db: Session, like: schemas.LikeCreate):
+    try:
+        like_to_delete = db.query(models.Like).filter(models.Like.owner_id == like.owner_id, models.Like.post_id == like.post_id).one()
+        db.delete(like_to_delete)
+        db.commit()
+        return "ok"
+    except exc.NoResultFound as err:
+        return {"delete": "not exist"}

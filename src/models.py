@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, ARRAY, Date, DateTime, Index
+from sqlalchemy import UniqueConstraint
 # from sqlalchemy.types import Date
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -72,11 +73,7 @@ class Comment(Base):
 class Like(Base):
     __tablename__ = "likes"
     __table_args__ = (
-        Index(
-            'post_id',
-            'owner_id',
-            unique=True,
-        ),
+        UniqueConstraint("post_id", "owner_id", name="post_owner_key"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
