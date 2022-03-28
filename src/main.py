@@ -82,11 +82,14 @@ def user_add(user: schemas.UserCreate, db: Session = Depends(get_db)):
 def user_me(Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     user = helpers.get_user_by_id(db, Authorize.get_jwt_subject())
-    if user is not None and 'pets' in user:
-        for i in range(len(user['pets'])):
-            if user['pets'][i]['image'] is not None:
-                user['pets'][i]['image'] = IMAGES_PUBLIC_URL + user['pets'][i]['image']
-    return user
+    if user is not None:
+        if 'pets' in user:
+            for i in range(len(user['pets'])):
+                if user['pets'][i]['image'] is not None:
+                    user['pets'][i]['image'] = IMAGES_PUBLIC_URL + user['pets'][i]['image']
+        return user
+    else:
+        raise HTTPException(status_code=401, detail="Something went wrong")        
 
 @app.put("/users/me", response_model=schemas.UserUpdate)
 def user_me_update(user: schemas.UserUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):

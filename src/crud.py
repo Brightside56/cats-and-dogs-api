@@ -1,12 +1,29 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
+from sqlalchemy.inspection import inspect
 
 import models, schemas
+
+from sqlalchemy.inspection import inspect
+
+def to_dict(obj, with_relationships=True):
+    d = {}
+    for column in obj.__table__.columns:
+        if with_relationships and len(column.foreign_keys) > 0:
+             # Skip foreign keys
+            continue
+        d[column.name] = getattr(obj, column.name)
+
+    if with_relationships:
+        for relationship in inspect(type(obj)).relationships:
+            val = getattr(obj, relationship.key)
+            d[relationship.key] = to_dict(val) if val else None
+    return d
 
 
 def get_user(db: Session, user_id: int):
     user = db.query(models.User).filter(models.User.id == user_id).first()
-    return user.to_dict()
+    return user._asdict()
 
 
 def get_users(db: Session, skip: int = 0, limit: int = 100):
@@ -77,6 +94,10 @@ def get_post(db: Session, post_id: int):
         post_dict = post[0].to_dict()
         post_dict['name'] = post[1]
         post_dict['avatar'] = post[2]
+        if post[0].comments:
+            post_dict['comments'] = []
+            for comment in post[0].comments:
+                post_dict['comments'].append(comment.to_dict())
         return post_dict
     else:
         return []
@@ -92,6 +113,10 @@ def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None
         post_dict = post[0].to_dict()
         post_dict['name'] = post[1]
         post_dict['avatar'] = post[2]
+        if post[0].comments:
+            post_dict['comments'] = []
+            for comment in post[0].comments:
+                post_dict['comments'].append(comment.to_dict())
         filtered_posts.append(post_dict)
     return filtered_posts
 
