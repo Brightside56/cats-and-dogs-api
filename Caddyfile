@@ -2,8 +2,8 @@
 #  local_certs
 #}
 
-api.adoptpets.click {
-    tls o.gumbar56@gmail.com
+api2.adoptpets.click {
+    tls sweetdimensions@gmail.com
 
     @options {
         method OPTIONS
