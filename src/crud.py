@@ -89,15 +89,21 @@ def update_pet(db: Session, pet: schemas.PetUpdate, pet_id: int):
 
 
 def get_post(db: Session, post_id: int):
-    post = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Post.id == post_id, models.Pet.id == models.Post.owner_id).first()
+    post = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar'), models.Pet.owner_id.label('user')).join(models.Pet).filter(models.Post.id == post_id, models.Pet.id == models.Post.owner_id).first()
     if post:
         post_dict = post[0].to_dict()
         post_dict['name'] = post[1]
         post_dict['avatar'] = post[2]
+        post_owner = db.query(models.User).filter(models.User.id == post[3]).first()
+        post_dict['country'] = post_owner.country
+        post_dict['city'] = post_owner.city
         if post[0].comments:
             post_dict['comments'] = []
             for comment in post[0].comments:
-                post_dict['comments'].append(comment.to_dict())
+                owner = db.query(models.User).filter(models.User.id == comment.owner_id).first()
+                comment_json = comment.to_dict()
+                comment_json['username'] = owner.username
+                post_dict['comments'].append(comment_json)
         return post_dict
     else:
         return []

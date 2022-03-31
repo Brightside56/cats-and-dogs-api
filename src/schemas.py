@@ -86,6 +86,7 @@ class Comment(CommentBase):
     time: datetime
     owner_id: int
     post_id: int
+    username: str | None = None    
 
     class Config:
         orm_mode = True
@@ -106,7 +107,9 @@ class Post(PostBase):
     owner_id: int
     avatar: Optional[str]
     name: str
-    
+    country: str | None = None
+    city: str | None = None    
+
     comments: list[Comment] = []
     class Config:
         orm_mode = True
