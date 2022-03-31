@@ -13,7 +13,7 @@ from fastapi.routing import APIRoute
 from fastapi_jwt_auth.exceptions import AuthJWTException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-import crud, models, schemas, helpers
+import crud, models, schemas, helpers, search
 from database import SessionLocal, engine
 from typing import List, Optional
 
@@ -140,7 +140,7 @@ def pet_get(pet_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Pet with such id not found")
 
 
-@app.put("/pet/{pet_id}", response_model=schemas.Pet)
+@app.put("/pets/{pet_id}", response_model=schemas.Pet)
 def pet_update(pet_id: int, pet: schemas.PetUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
     pet_by_id = crud.get_pet(db=db, pet_id=pet_id)
@@ -156,7 +156,16 @@ def pet_update(pet_id: int, pet: schemas.PetUpdate, db: Session = Depends(get_db
     else:
         raise HTTPException(status_code=404, detail="Pet with such id not found")
      
-
+@app.delete('/pets/{pet_id}', response_model=dict)
+async def pets_delete(pet_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    pet_source = crud.get_pet(pet_id=pet_id, db=db)
+    if pet_source is None:
+        raise HTTPException(status_code=404, detail="Pet not found")
+    if pet_source['owner_id'] == Authorize.get_jwt_subject():
+        return crud.delete_pet(db=db, pet_id=pet_id)
+    else:
+        raise HTTPException(status_code=401, detail="You're not owner of pet to remove")
 
 
 @app.post('/pets/{pet_id}/posts', response_model=schemas.Post)
@@ -227,6 +236,18 @@ def posts_get(post_id: int, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=404, detail="Post not found")
 
+@app.delete('/posts/{post_id}', response_model=dict)
+async def posts_delete(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    post_source = crud.get_post(post_id=post_id, db=db)
+    if post_source is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    pet_source = crud.get_pet(pet_id=post_source['owner_id'], db=db)
+    if pet_source['owner_id'] == Authorize.get_jwt_subject():
+        return crud.delete_post(db=db, post_id=post_id)
+    else:
+        raise HTTPException(status_code=401, detail="You're not owner of post to remove")
+
 @app.get('/posts/{post_id}/likes', response_model=int)
 def posts_get(post_id: int, db: Session = Depends(get_db)):
     return crud.get_likes(db=db, post_id=post_id)
@@ -283,7 +304,20 @@ async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: S
     else:
         raise HTTPException(status_code=401, detail="You're not owner of comment to remove")
 
-
+@app.get('/search', response_model=List[schemas.Post])
+def perform_search(offset: int = 0, limit: int = 100, species: str = None, gte_date: date = None, sex: str = None, country: str = None, city: str = None, has_home: bool = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_optional()
+    user_id = Authorize.get_jwt_subject() or None
+    query = schemas.Search(species=species, gte_date=gte_date, sex=sex, country=country, city=city, has_home=has_home)
+    posts = search.get_posts(db=db, offset=offset, limit=limit, query=query, user_id=user_id)
+    if posts:
+        for p in range(len(posts)):
+            for i in range(len(posts[p]['images'])):
+                posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+            if 'avatar' in posts[p]:
+                posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
+    return posts
+        
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema

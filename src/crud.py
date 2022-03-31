@@ -87,6 +87,11 @@ def update_pet(db: Session, pet: schemas.PetUpdate, pet_id: int):
     db.refresh(db_pet) #refresh the attribute of the given instan
     return db_pet.to_dict()
 
+def delete_pet(db: Session, pet_id: int):
+    pet = db.query(models.Pet).filter(models.Pet.id == pet_id).one()
+    db.delete(pet)
+    db.commit()
+    return {"delete": "ok"}
 
 def get_post(db: Session, post_id: int):
     post = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar'), models.Pet.owner_id.label('user')).join(models.Pet).filter(models.Post.id == post_id, models.Pet.id == models.Post.owner_id).first()
@@ -97,6 +102,8 @@ def get_post(db: Session, post_id: int):
         post_owner = db.query(models.User).filter(models.User.id == post[3]).first()
         post_dict['country'] = post_owner.country
         post_dict['city'] = post_owner.city
+        post_dict['comments_count'] = len(post[0].comments)
+        post_dict['likes_count'] = db.query(models.Like).filter(models.Like.post_id == post[0].id).count() 
         if post[0].comments:
             post_dict['comments'] = []
             for comment in post[0].comments:
@@ -119,6 +126,8 @@ def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None
         post_dict = post[0].to_dict()
         post_dict['name'] = post[1]
         post_dict['avatar'] = post[2]
+        post_dict['comments_count'] = len(post[0].comments)
+        post_dict['likes_count'] = db.query(models.Like).filter(models.Like.post_id == post[0].id).count() 
         if post[0].comments:
             post_dict['comments'] = []
             for comment in post[0].comments:
@@ -135,6 +144,9 @@ def create_post(db: Session, post: schemas.PostCreate, owner_id: int):
     pet = db.query(models.Pet).filter(models.Pet.id == owner_id).first()
     created_post['name'] = pet.name
     created_post['avatar'] = pet.image
+    created_post['comments_count'] = 0
+    created_post['likes_count'] = 0 
+
     
     return created_post
 
@@ -146,6 +158,13 @@ def update_post(db: Session, post: schemas.PostCreate, post_id: int):
     db.commit()
     db.refresh(db_post)
     return post
+
+
+def delete_post(db: Session, post_id: int):
+    post = db.query(models.Post).filter(models.Post.id == post_id).one()
+    db.delete(post)
+    db.commit()
+    return {"delete": "ok"}
 
 
 def get_comment(db: Session, comment_id: int):
@@ -188,8 +207,8 @@ def delete_comment(db: Session, comment_id: int):
     return {"delete": "ok"}
 
 def get_likes(db: Session, post_id: int):
-    likes = db.query(models.Like).filter(models.Comment.post_id==post_id).order_by(desc(models.Comment.time)).all()
-    return len(likes)
+    # likes = db.query(models.Like).filter(models.Comment.post_id==post_id).count()
+    return db.query(models.Like).filter(models.Like.post_id==post_id).count()
 
 def create_like(db: Session, like: schemas.LikeCreate):
     db_like = models.Like(**like.dict())

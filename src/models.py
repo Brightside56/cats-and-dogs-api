@@ -79,3 +79,4 @@ class Like(Base):
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("posts.id"))
     owner_id = Column(Integer, ForeignKey("users.id"))
+

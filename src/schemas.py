@@ -109,8 +109,12 @@ class Post(PostBase):
     name: str
     country: str | None = None
     city: str | None = None    
+    likes_count: int
+    liked: Optional[bool] = False
+    comments_count: int
 
     comments: list[Comment] = []
+
     class Config:
         orm_mode = True
 
@@ -129,3 +133,11 @@ class Like(LikeBase):
 
     class Config:
         orm_mode = True
+
+class Search(BaseModel):
+    species: Optional[str]
+    gte_date: Optional[date]
+    sex: Optional[str]
+    country: Optional[str]
+    city: Optional[str]
+    has_home: Optional[bool]
