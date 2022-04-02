@@ -4,17 +4,31 @@ from sqlalchemy.inspection import inspect
 from sqlalchemy import exc
 import models, schemas
 from database import SessionLocal, engine
-
+from sqlalchemy.orm import joinedload
 from sqlalchemy.inspection import inspect
 
 def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_id: int = None):
-    # with engine.connect() as con:
+    search = db.query(models.Post,models.Pet,models.User).filter(models.Pet.id == models.Post.owner_id, models.User.id == models.Pet.owner_id).distinct(models.Pet.id).order_by(models.Pet.id.desc(),models.Post.time.desc())
 
-    #     rs = con.execute('SELECT images as images FROM posts')
+    if query.species is not None:
+        search = search.filter(models.Pet.species == query.species)
 
-    #     for row in rs:
-    #         print(row)
-    result = db.query(models.Post,models.Pet,models.User).filter(models.Pet.id == models.Post.owner_id, models.User.id == models.Pet.owner_id).all()
+    if query.sex is not None:
+        search = search.filter(models.Pet.sex == query.sex)
+
+    if query.gte_date is not None:
+        search = search.filter(models.Pet.birth_date < gte_date)
+
+    if query.country is not None:
+        search = search.filter(models.User.country == query.country)
+
+    if query.city is not None:
+        search = search.filter(models.User.city == query.city)
+
+    if query.has_home is not None:
+        search = search.filter(models.Pet.has_home == query.has_home)
+
+    result = search.offset(offset).limit(limit).all()
     posts = []
     for item in result:
         post = {}
@@ -30,7 +44,6 @@ def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_
         post['comments_count'] = len(item[0].comments)
         post['likes_count'] = db.query(models.Like).filter(models.Like.post_id == post['id']).count()
         if user_id is not None:
-            print(db.query(models.Like).filter(models.Like.post_id == post['id'], models.Like.owner_id == user_id).count())
             post['liked'] = bool(db.query(models.Like).filter(models.Like.post_id == post['id'], models.Like.owner_id == user_id).count())
         else:
             post['liked'] = False

@@ -160,7 +160,7 @@ def pet_update(pet_id: int, pet: schemas.PetUpdate, db: Session = Depends(get_db
 async def pets_delete(pet_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     pet_source = crud.get_pet(pet_id=pet_id, db=db)
-    if pet_source is None:
+    if not pet_source:
         raise HTTPException(status_code=404, detail="Pet not found")
     if pet_source['owner_id'] == Authorize.get_jwt_subject():
         return crud.delete_pet(db=db, pet_id=pet_id)
@@ -203,8 +203,11 @@ async def pet_posts_add(pet_id: int, text: Optional[str] = Form(None), image_fil
         raise HTTPException(status_code=422, detail="Wrong owner of pet")
 
 @app.get('/pets/{pet_id}/posts', response_model=List[schemas.Post])
-def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    posts = crud.get_posts(db=db, pet_id=pet_id, offset=offset, limit=limit)
+def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_optional()
+    user_id = Authorize.get_jwt_subject() or None
+
+    posts = crud.get_posts(db=db, pet_id=pet_id, offset=offset, limit=limit, user_id=user_id)
     if posts:
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
@@ -214,8 +217,10 @@ def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, db: Session = 
     return posts
 
 @app.get('/posts', response_model=List[schemas.Post])
-def posts_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    posts = crud.get_posts(db=db, offset=offset, limit=limit)
+def posts_get(offset: int = 0, limit: int = 100, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_optional()
+    user_id = Authorize.get_jwt_subject() or None
+    posts = crud.get_posts(db=db, offset=offset, limit=limit, user_id=user_id)
     if posts:
         for p in range(len(posts)):
             for i in range(len(posts[p]['images'])):
@@ -225,8 +230,11 @@ def posts_get(offset: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     return posts
 
 @app.get('/posts/{post_id}', response_model=schemas.Post)
-def posts_get(post_id: int, db: Session = Depends(get_db)):
-    post = crud.get_post(db=db, post_id=post_id)
+def posts_get(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_optional()
+    user_id = Authorize.get_jwt_subject() or None
+
+    post = crud.get_post(db=db, post_id=post_id, user_id=user_id)
     if post:
         for i in range(len(post['images'])):
             post['images'][i] = IMAGES_PUBLIC_URL + post['images'][i]
@@ -240,7 +248,7 @@ def posts_get(post_id: int, db: Session = Depends(get_db)):
 async def posts_delete(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     post_source = crud.get_post(post_id=post_id, db=db)
-    if post_source is None:
+    if not post_source:
         raise HTTPException(status_code=404, detail="Post not found")
     pet_source = crud.get_pet(pet_id=post_source['owner_id'], db=db)
     if pet_source['owner_id'] == Authorize.get_jwt_subject():
@@ -323,9 +331,9 @@ def custom_openapi():
         return app.openapi_schema
 
     openapi_schema = get_openapi(
-        title = "My Auth API",
+        title = "Pets instagram API",
         version = "1.0",
-        description = "An API with an Authorize Button",
+        description = "An API with pets and posts",
         routes = app.routes,
     )
 
@@ -350,7 +358,16 @@ def custom_openapi():
             # access_token
             if (
                 re.search("jwt_required", inspect.getsource(endpoint)) or
-                re.search("fresh_jwt_required", inspect.getsource(endpoint)) or
+                re.search("fresh_jwt_required", inspect.getsource(endpoint))
+            ):
+                openapi_schema["paths"][path][method]["security"] = [
+                    {
+                        "Bearer Auth": []
+                    },
+                    {}
+                ]
+
+            if (
                 re.search("jwt_optional", inspect.getsource(endpoint))
             ):
                 openapi_schema["paths"][path][method]["security"] = [

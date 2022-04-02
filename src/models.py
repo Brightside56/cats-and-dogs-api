@@ -49,6 +49,7 @@ class Pet(Base):
     has_home = Column(Boolean, server_default='t', default=True)
     owner_id = Column(Integer, ForeignKey("users.id"))    
     owner = relationship("User", back_populates="pets")
+    posts = relationship("Post", backref="pets", cascade="all, delete")
 
 class Post(Base):
     __tablename__ = "posts"
@@ -58,7 +59,8 @@ class Post(Base):
     owner_id = Column(Integer, ForeignKey("pets.id"))
     images = Column(ARRAY(String()))
     time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    comments = relationship("Comment", back_populates="post")
+    comments = relationship("Comment", back_populates="post", cascade="all, delete")
+    likes = relationship("Like", backref="posts", cascade="all, delete")
 
 class Comment(Base):
     __tablename__ = "comments"
