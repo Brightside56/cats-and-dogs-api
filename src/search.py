@@ -17,7 +17,7 @@ def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_
         search = search.filter(models.Pet.sex == query.sex)
 
     if query.gte_date is not None:
-        search = search.filter(models.Pet.birth_date < gte_date)
+        search = search.filter(models.Pet.birth_date <= query.gte_date)
 
     if query.country is not None:
         search = search.filter(models.User.country == query.country)
@@ -29,6 +29,7 @@ def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_
         search = search.filter(models.Pet.has_home == query.has_home)
 
     result = search.offset(offset).limit(limit).all()
+
     posts = []
     for item in result:
         post = {}
