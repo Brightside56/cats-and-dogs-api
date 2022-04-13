@@ -10,22 +10,23 @@ from sqlalchemy.inspection import inspect
 def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_id: int = None):
     search = db.query(models.Post,models.Pet,models.User).filter(models.Pet.id == models.Post.owner_id, models.User.id == models.Pet.owner_id).distinct(models.Pet.id).order_by(models.Pet.id.desc(),models.Post.time.desc())
 
-    if query.species is not None:
+    print(query.species)
+    if query.species is not None and query.species is not "":
         search = search.filter(models.Pet.species == query.species)
 
-    if query.sex is not None:
+    if query.sex is not None and len(query.sex) > 0:
         search = search.filter(models.Pet.sex == query.sex)
 
-    if query.gte_date is not None:
-        search = search.filter(models.Pet.birth_date <= query.gte_date)
+    if query.gte_date is not None and query.gte_date:
+        search = search.filter(models.Pet.birth_date >= query.gte_date)
 
-    if query.country is not None:
+    if query.country is not None and len(query.country) > 0:
         search = search.filter(models.User.country == query.country)
 
-    if query.city is not None:
+    if query.city is not None and len(query.city) > 0:
         search = search.filter(models.User.city == query.city)
 
-    if query.has_home is not None:
+    if query.has_home is not None and len(query.has_home) > 0:
         search = search.filter(models.Pet.has_home == query.has_home)
 
     result = search.offset(offset).limit(limit).all()

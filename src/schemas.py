@@ -29,6 +29,7 @@ class Pet(PetBase):
     has_home: bool
     owner_id: int
     country: str | None = None
+    state: str | None = None
     city: str | None = None
 
     class Config:
@@ -54,6 +55,7 @@ class UserCreate(UserBase):
 class UserUpdate(UserBase):
     email: Optional[str]
     country: Optional[str]
+    state: Optional[str]
     city: Optional[str]
     address: Optional[str]
     phone: Optional[str]
@@ -63,6 +65,7 @@ class User(UserBase):
     username: str
     email: str
     country: Optional[str]
+    state: Optional[str]
     city: Optional[str]
     address: Optional[str]
     phone: Optional[str]
@@ -108,6 +111,7 @@ class Post(PostBase):
     avatar: Optional[str]
     name: str
     country: str | None = None
+    state: str | None = None
     city: str | None = None    
     likes_count: int
     liked: Optional[bool] = False
@@ -136,7 +140,7 @@ class Like(LikeBase):
 
 class Search(BaseModel):
     species: Optional[str]
-    gte_date: Optional[date]
+    gte_date: Optional[date] | None = None
     sex: Optional[str]
     country: Optional[str]
     city: Optional[str]

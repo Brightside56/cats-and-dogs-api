@@ -33,6 +33,7 @@ class User(Base):
     hashed_password = Column(String)
     phone = Column(String)
     country = Column(String)
+    state = Column(String)
     city = Column(String)
     address = Column(String)
     pets = relationship("Pet", back_populates="owner")

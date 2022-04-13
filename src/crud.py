@@ -52,22 +52,24 @@ def update_user(db: Session, user: schemas.UserUpdate, user_id: int):
 
 
 def get_pet(db: Session, pet_id: int):
-    pet = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.Pet.id == pet_id, models.User.id == models.Pet.owner_id).first()
+    pet = db.query(models.Pet,models.User.country.label('country'),models.User.country.label('state'),models.User.city.label('city')).join(models.User).filter(models.Pet.id == pet_id, models.User.id == models.Pet.owner_id).first()
     if pet:
         pet_dict = pet[0].to_dict()
         pet_dict['country'] = pet[1]
-        pet_dict['city'] = pet[2]
+        pet_dict['state'] = pet[2]
+        pet_dict['city'] = pet[3]
         return pet_dict
     else:
         return []
 
 def get_pets(db: Session, offset: int = 0, limit: int = 100):
-    pets = db.query(models.Pet,models.User.country.label('country'),models.User.city.label('city')).join(models.User).filter(models.User.id == models.Pet.owner_id).offset(offset).limit(limit).all()
+    pets = db.query(models.Pet,models.User.country.label('country'),models.User.country.label('state'),models.User.city.label('city')).join(models.User).filter(models.User.id == models.Pet.owner_id).offset(offset).limit(limit).all()
     pets_filtered = []
     for pet in pets:
         pet_dict = pet[0].to_dict()
         pet_dict['country'] = pet[1]
-        pet_dict['city'] = pet[2]
+        pet_dict['state'] = pet[2]
+        pet_dict['city'] = pet[3]
         pets_filtered.append(pet_dict)
         
     return pets_filtered
@@ -101,6 +103,7 @@ def get_post(db: Session, post_id: int, user_id: int = None):
         post_dict['avatar'] = post[2]
         post_owner = db.query(models.User).filter(models.User.id == post[3]).first()
         post_dict['country'] = post_owner.country
+        post_dict['state'] = post_owner.state
         post_dict['city'] = post_owner.city
         post_dict['comments_count'] = len(post[0].comments)
         post_dict['likes_count'] = db.query(models.Like).filter(models.Like.post_id == post[0].id).count()
