@@ -52,7 +52,7 @@ def update_user(db: Session, user: schemas.UserUpdate, user_id: int):
 
 
 def get_pet(db: Session, pet_id: int):
-    pet = db.query(models.Pet,models.User.country.label('country'),models.User.country.label('state'),models.User.city.label('city')).join(models.User).filter(models.Pet.id == pet_id, models.User.id == models.Pet.owner_id).first()
+    pet = db.query(models.Pet,models.User.country.label('country'),models.User.state.label('state'),models.User.city.label('city')).join(models.User).filter(models.Pet.id == pet_id, models.User.id == models.Pet.owner_id).first()
     if pet:
         pet_dict = pet[0].to_dict()
         pet_dict['country'] = pet[1]
@@ -63,7 +63,7 @@ def get_pet(db: Session, pet_id: int):
         return []
 
 def get_pets(db: Session, offset: int = 0, limit: int = 100):
-    pets = db.query(models.Pet,models.User.country.label('country'),models.User.country.label('state'),models.User.city.label('city')).join(models.User).filter(models.User.id == models.Pet.owner_id).offset(offset).limit(limit).all()
+    pets = db.query(models.Pet,models.User.country.label('country'),models.User.state.label('state'),models.User.city.label('city')).join(models.User).filter(models.User.id == models.Pet.owner_id).offset(offset).limit(limit).all()
     pets_filtered = []
     for pet in pets:
         pet_dict = pet[0].to_dict()
