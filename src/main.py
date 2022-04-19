@@ -241,6 +241,22 @@ def posts_get(offset: int = 0, limit: int = 100, Authorize: AuthJWT = Depends(),
                 posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
     return posts
 
+@app.get('/posts/liked', response_model=List[schemas.Post])
+def posts_get_liked(offset: int = 0, limit: int = 100, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    user_id = Authorize.get_jwt_subject() or None
+    if user_id is not None:
+        posts = crud.get_posts(db=db, offset=offset, limit=limit, user_id=user_id, liked=True)
+        if posts:
+            for p in range(len(posts)):
+                for i in range(len(posts[p]['images'])):
+                    posts[p]['images'][i] = IMAGES_PUBLIC_URL + posts[p]['images'][i]
+                if 'avatar' in posts[p]:
+                    posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
+        return posts
+    else:
+        raise HTTPException(status_code=403, detail="Wrong user")
+
 @app.get('/posts/{post_id}', response_model=schemas.Post)
 def posts_get(post_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_optional()

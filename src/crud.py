@@ -120,12 +120,23 @@ def get_post(db: Session, post_id: int, user_id: int = None):
     else:
         return []
 
-def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None, user_id: int = None):
-    if pet_id is not None:
-        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Post.owner_id==pet_id, models.Pet.id == models.Post.owner_id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
-    else:
-        posts = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).filter(models.Pet.id == models.Post.owner_id).order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
+def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None, user_id: int = None, liked: bool = False):
     
+    if liked:
+        query = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).join(models.Like).filter(models.Like.owner_id==user_id, models.Like.post_id==models.Post.id)
+    else:
+        query = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet)
+
+    if pet_id is not None:
+        query.filter(models.Post.owner_id==pet_id)
+    
+    query.filter(models.Pet.id == models.Post.owner_id)
+    
+    if liked:
+        query.where(models.Like.owner_id==user_id)
+
+    posts = query.order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
+
     filtered_posts = []
     for post in posts:
         post_dict = post[0].to_dict()
@@ -133,7 +144,10 @@ def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None
         post_dict['avatar'] = post[2]
         post_dict['comments_count'] = len(post[0].comments)
         post_dict['likes_count'] = db.query(models.Like).filter(models.Like.post_id == post[0].id).count()
-        post_dict['liked'] = bool(db.query(models.Like).filter(models.Like.post_id == post[0].id, models.Like.owner_id == user_id).count())
+        if liked:
+            post_dict['liked'] = True
+        else:
+            post_dict['liked'] = bool(db.query(models.Like).filter(models.Like.post_id == post[0].id, models.Like.owner_id == user_id).count())
         if post[0].comments:
             post_dict['comments'] = []
             for comment in post[0].comments:
