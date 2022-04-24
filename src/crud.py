@@ -122,18 +122,17 @@ def get_post(db: Session, post_id: int, user_id: int = None):
 
 def get_posts(db: Session, offset: int = 0, limit: int = 100, pet_id: int = None, user_id: int = None, liked: bool = False):
     
+    # TODO: refactor
     if liked:
         query = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet).join(models.Like).filter(models.Like.owner_id==user_id, models.Like.post_id==models.Post.id)
     else:
         query = db.query(models.Post, models.Pet.name.label('name'), models.Pet.image.label('avatar')).join(models.Pet)
 
     if pet_id is not None:
-        query.filter(models.Post.owner_id==pet_id)
-    
-    query.filter(models.Pet.id == models.Post.owner_id)
+        query = query.filter(models.Post.owner_id==pet_id)
     
     if liked:
-        query.where(models.Like.owner_id==user_id)
+        query = query.where(models.Like.owner_id==user_id)
 
     posts = query.order_by(desc(models.Post.time)).offset(offset).limit(limit).all()
 

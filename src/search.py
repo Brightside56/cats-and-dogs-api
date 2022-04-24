@@ -10,7 +10,6 @@ from sqlalchemy.inspection import inspect
 def get_posts(db: Session, offset: int, limit: int, query: schemas.Search, user_id: int = None):
     search = db.query(models.Post,models.Pet,models.User).filter(models.Pet.id == models.Post.owner_id, models.User.id == models.Pet.owner_id).distinct(models.Pet.id).order_by(models.Pet.id.desc(),models.Post.time.desc())
 
-    print(query.species)
     if query.species is not None and query.species is not "":
         search = search.filter(models.Pet.species == query.species)
 

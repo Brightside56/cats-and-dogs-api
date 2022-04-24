@@ -341,7 +341,7 @@ async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: S
         raise HTTPException(status_code=401, detail="You're not owner of comment to remove")
 
 @app.get('/search', response_model=List[schemas.Post])
-def perform_search(offset: int = 0, limit: int = 100, species: str = Form(None), gte_date: date = Form(None), sex: str = Form(None), country: str = Form(None), city: str = Form(None), has_home: bool = Form(None), Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+def perform_search(offset: int = 0, limit: int = 100, species: str | None = None, gte_date: date | None = None, sex: str | None = None, country: str | None = None, city: str | None = None, has_home: bool | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_optional()
     user_id = Authorize.get_jwt_subject() or None
     query = schemas.Search(species=species, gte_date=gte_date, sex=sex, country=country, city=city, has_home=has_home)
