@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime
+from enum import Enum
+
+class TransferStatusEnum(str,Enum):
+  waiting = 'Waiting'
+  rejected = 'Rejected'
+  cancelled = "Cancelled"
+  approved = "Approved"
+  finished = "Finished"
 
 class Auth(BaseModel):
     username: str
@@ -137,6 +145,44 @@ class Like(LikeBase):
 
     class Config:
         orm_mode = True
+
+class TransferBase(BaseModel):
+    pet_id: int
+    applicant_id: int
+
+class TransferUpdate(TransferBase):
+    status: TransferStatusEnum
+
+class Transfer(TransferBase):
+    id: int
+    pet_id: int
+    owner_id: int
+    applicant_id: int
+    status: TransferStatusEnum
+    time: datetime
+
+    class Config:
+        orm_mode = True
+
+class Shelter(BaseModel):
+    user_id: int
+    pet_id: int
+
+    class Config:
+        orm_mode = True
+
+# class Shelter(ShelterBase):
+#     id: int
+#     owner_id: int
+#     post_id: int
+
+#     user_id = Column(Integer, unique=True, ForeignKey("users.id"))
+#     pet_id = Column(Integer, ForeignKey("pets.id"))
+
+
+#     class Config:
+#         orm_mode = True
+
 
 class Search(BaseModel):
     species: Optional[str]

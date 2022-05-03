@@ -246,3 +246,40 @@ def delete_like(db: Session, like: schemas.LikeCreate):
         return "ok"
     except exc.NoResultFound as err:
         return {"delete": "not exist"}
+
+def create_transfer(db: Session, transfer: schemas.TransferBase):
+    db_transfer = models.Transfer(**transfer.dict())
+    try:
+        db.add(db_transfer)
+        db.commit()
+        db.refresh(db_transfer)
+    except exc.IntegrityError as err:
+        return {"transfer": "exists"}
+    return db_transfer
+
+def update_transfer(db: Session, transfer_id:int, transfer: schemas.TransferUpdate):
+    db_transfer = db.query(models.Transfer).filter(models.Transfer.id == transfer_id).first()
+    for key, value in pet.dict(exclude_unset=True).items():
+        setattr(db_transfer, key, value)
+    db.commit()
+    db.refresh(db_transfer) #refresh the attribute of the given instan
+    return db_transfer.to_dict()
+
+def add_to_shelter(db: Session, shelter: schemas.Shelter):
+    db_shelter = models.Shelter(**like.dict())
+    try:
+        db.add(db_shelter)
+        db.commit()
+        db.refresh(db_shelter)
+    except exc.IntegrityError as err:
+        return {"shelter": "exists"}
+    return db_shelter
+
+def delete_shelter(db: Session, user_id: int):
+    try:
+        shelter_to_delete = db.query(models.Shelter).filter(models.Shelter.user_id == user_id).one()
+        db.delete(shelter_to_delete)
+        db.commit()
+        return "ok"
+    except exc.NoResultFound as err:
+        return {"delete": "not exist"}

@@ -106,8 +106,14 @@ def user_get(user_id: int, db: Session = Depends(get_db)):
 @app.put("/users/me", response_model=schemas.UserUpdate)
 def user_me_update(user: schemas.UserUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
-    updated_user = crud.update_user(db=db, user=user, user_id=Authorize.get_jwt_subject())
-    return updated_user
+    return crud.update_user(db=db, user=user, user_id=Authorize.get_jwt_subject())
+
+@app.post("/users/me/shelter/clean", response_model=dict)
+def user_shelter_clean(user: schemas.UserUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+    Authorize.jwt_required()
+    user_id=Authorize.get_jwt_subject()
+
+    return crud.delete_shelter(db=db, user_id=user_id)
 
 @app.post('/pets', response_model=schemas.Pet)
 async def pets_add(name: str = Form(...), description: str = Form(...), sex: str = Form(...), species: str = Form(...), birth_date: date = Form(...), has_home: bool = Form(...), image: UploadFile | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
@@ -228,6 +234,19 @@ def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, Authorize: Aut
                 posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
     return posts
 
+@app.get('/pets/{pet_id}/add_to_shelter', response_model=schemas.Shelter)
+def pet_add_to_shelter(pet_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    user_id = Authorize.get_jwt_subject()
+    pet = crud.get_pet(db=db, pet_id=pet_id)
+    if pet is not None:
+        if not pet.has_home:
+            return crud.add_to_shelter(db=db, shelter={"pet_id": pet_id, "user_id": user_id})
+        else:
+            raise HTTPException(status_code=404, detail="Pet doesn't need new home")
+    else:
+        raise HTTPException(status_code=404, detail="Pet with such id not found")
+
 @app.get('/posts', response_model=List[schemas.Post])
 def posts_get(offset: int = 0, limit: int = 100, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_optional()
@@ -339,6 +358,26 @@ async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: S
         return crud.delete_comment(db=db, comment_id=comment_id)
     else:
         raise HTTPException(status_code=401, detail="You're not owner of comment to remove")
+
+@app.post('/transfer', response_model=schemas.Transfer)
+async def transfer_add(comment: schemas.TransferBase, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    transfer.applicant_id = Authorize.get_jwt_subject()
+    pet = crud.get_pet(db=db, pet_id=transfer.pet_id)
+    if pet is not None:
+        if not pet.has_home:
+            transfer.owner_id = pet.owner_id
+        else:
+            raise HTTPException(status_code=429, detail="Pet doesn't need new home")
+    else:
+        raise HTTPException(status_code=404, detail="Pet not found")
+        
+    return crud.create_transfer(db=db, transfer=transfer)
+
+@app.put('/transfer/{transfer_id}', response_model=schemas.Transfer)
+async def transfer_update(transfer: schemas.TransferUpdate, transfer_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+    Authorize.jwt_required()
+    return crud.update_transfer(db=db, transfer=transfer, transfer_id=transfer_id)
 
 @app.get('/search', response_model=List[schemas.Post])
 def perform_search(offset: int = 0, limit: int = 100, species: str | None = None, gte_date: date | None = None, sex: str | None = None, country: str | None = None, city: str | None = None, has_home: bool | None = None, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):

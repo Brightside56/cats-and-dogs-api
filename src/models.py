@@ -6,7 +6,8 @@ from datetime import datetime
 from sqlalchemy.ext.declarative import declared_attr, declarative_base
 from sqlalchemy import Table
 from typing import Dict, Any
-
+from sqlalchemy.dialects.postgresql import ENUM
+import schemas
 
 class Custom:
     """Some custom logic here!"""
@@ -82,4 +83,36 @@ class Like(Base):
     id = Column(Integer, primary_key=True, index=True)
     post_id = Column(Integer, ForeignKey("posts.id"))
     owner_id = Column(Integer, ForeignKey("users.id"))
+
+class Transfer(Base):
+    __tablename__ = "transfers"
+    # __table_args__ = (
+    #     Index(
+    #         'pet_unique_transfer',  # Index name
+    #         'pet_id', 'status',  # Columns which are part of the index
+    #         unique=True,
+    #         postgresql_where=Column(f'status={schemas.TransferStatusEnum}')),  # The condition
+    #     Index(
+    #         'ix_unique_primary_content',  # Index name
+    #         'pet_id', 'status',  # Columns which are part of the index
+    #         unique=True,
+    #         postgresql_where=Column('is_primary')),  # The condition
+
+    # )
+
+    id = Column(Integer, primary_key=True, index=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"), unique=True)
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    applicant_id = Column(Integer, ForeignKey("users.id"))
+    time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    status = Column(ENUM(schemas.TransferStatusEnum), default=schemas.TransferStatusEnum.waiting, nullable=False)
+
+class Shelter(Base):
+    __tablename__ = "shelters"
+    # __table_args__ = (
+    #     UniqueConstraint("user_id", "pet_id", name="shelter_owner_key"),
+    # )
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+    pet_id = Column(Integer, ForeignKey("pets.id"))
 
