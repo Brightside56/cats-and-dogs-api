@@ -247,8 +247,8 @@ def delete_like(db: Session, like: schemas.LikeCreate):
     except exc.NoResultFound as err:
         return {"delete": "not exist"}
 
-def create_transfer(db: Session, transfer: schemas.TransferBase):
-    db_transfer = models.Transfer(**transfer.dict())
+def create_transfer(db: Session, transfer: schemas.TransferCreate, user_id: int):
+    db_transfer = models.Transfer(**transfer.dict(), user_id=user_id)
     try:
         db.add(db_transfer)
         db.commit()

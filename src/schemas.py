@@ -147,8 +147,10 @@ class Like(LikeBase):
         orm_mode = True
 
 class TransferBase(BaseModel):
+    pass
+
+class TransferCreate(TransferBase):
     pet_id: int
-    applicant_id: int
 
 class TransferUpdate(TransferBase):
     status: TransferStatusEnum

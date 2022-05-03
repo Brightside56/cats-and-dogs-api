@@ -109,7 +109,7 @@ def user_me_update(user: schemas.UserUpdate, db: Session = Depends(get_db), Auth
     return crud.update_user(db=db, user=user, user_id=Authorize.get_jwt_subject())
 
 @app.post("/users/me/shelter/clean", response_model=dict)
-def user_shelter_clean(user: schemas.UserUpdate, db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
+def user_shelter_clean(db: Session = Depends(get_db), Authorize: AuthJWT = Depends()):
     Authorize.jwt_required()
     user_id=Authorize.get_jwt_subject()
 
@@ -234,7 +234,7 @@ def pet_posts_get(pet_id: int, offset: int = 0, limit: int = 100, Authorize: Aut
                 posts[p]['avatar'] = IMAGES_PUBLIC_URL + posts[p]['avatar']
     return posts
 
-@app.get('/pets/{pet_id}/add_to_shelter', response_model=schemas.Shelter)
+@app.post('/pets/{pet_id}/add_to_shelter', response_model=schemas.Shelter)
 def pet_add_to_shelter(pet_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
     user_id = Authorize.get_jwt_subject()
@@ -360,9 +360,9 @@ async def comments_delete(comment_id: int, Authorize: AuthJWT = Depends(), db: S
         raise HTTPException(status_code=401, detail="You're not owner of comment to remove")
 
 @app.post('/transfer', response_model=schemas.Transfer)
-async def transfer_add(comment: schemas.TransferBase, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
+async def transfer_add(comment: schemas.TransferCreate, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
     Authorize.jwt_required()
-    transfer.applicant_id = Authorize.get_jwt_subject()
+    user_id = Authorize.get_jwt_subject()
     pet = crud.get_pet(db=db, pet_id=transfer.pet_id)
     if pet is not None:
         if not pet.has_home:
@@ -372,7 +372,7 @@ async def transfer_add(comment: schemas.TransferBase, Authorize: AuthJWT = Depen
     else:
         raise HTTPException(status_code=404, detail="Pet not found")
         
-    return crud.create_transfer(db=db, transfer=transfer)
+    return crud.create_transfer(db=db, transfer=transfer, user_id=user_id)
 
 @app.put('/transfer/{transfer_id}', response_model=schemas.Transfer)
 async def transfer_update(transfer: schemas.TransferUpdate, transfer_id: int, Authorize: AuthJWT = Depends(), db: Session = Depends(get_db)):
